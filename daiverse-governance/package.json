@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "BNB Chain governance stack for DAIverse",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",

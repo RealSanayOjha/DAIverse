@@ -47,6 +47,27 @@ async function main() {
   const paramsAddress = await params.getAddress();
   console.log("Params deployed to:", paramsAddress);
 
+  // Deploy Timelock
+  console.log("\nDeploying Timelock...");
+  const proposers = [deployer.address];
+  const executors = [deployer.address];
+  const Timelock = await ethers.getContractFactory("Timelock");
+  const timelock = await Timelock.deploy(proposers, executors, deployer.address);
+  await timelock.waitForDeployment();
+  const timelockAddress = await timelock.getAddress();
+  console.log("Timelock deployed to:", timelockAddress);
+
+  // Deploy Governor
+  console.log("\nDeploying Governor...");
+  const votingDelay = 1; // 1 block
+  const votingPeriod = 45818; // 1 week on BSC (assuming 17s block time)
+  const quorumPercentage = 4; // 4%
+  const Governor = await ethers.getContractFactory("DAIverseGovernor");
+  const governor = await Governor.deploy(tokenAddress, timelockAddress, votingDelay, votingPeriod, quorumPercentage);
+  await governor.waitForDeployment();
+  const governorAddress = await governor.getAddress();
+  console.log("Governor deployed to:", governorAddress);
+
   // Transfer some tokens to Treasury
   const treasuryAmount = ethers.parseEther("10000000"); // 10M tokens
   await token.transfer(treasuryAddress, treasuryAmount);
@@ -59,7 +80,8 @@ async function main() {
   console.log("TrainingJobRegistry:", trainingJobRegistryAddress);
   console.log("Treasury:", treasuryAddress);
   console.log("Params:", paramsAddress);
-  console.log("\nNote: Governor and Timelock contracts need to be updated for OpenZeppelin v5 compatibility");
+  console.log("Timelock:", timelockAddress);
+  console.log("Governor:", governorAddress);
 }
 
 main()

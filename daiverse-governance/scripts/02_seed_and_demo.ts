@@ -46,6 +46,27 @@ async function main() {
   const paramsAddress = await params.getAddress();
   console.log("Params deployed to:", paramsAddress);
 
+  // Deploy Timelock
+  console.log("\nDeploying Timelock...");
+  const proposers = [deployer.address];
+  const executors = [deployer.address];
+  const Timelock = await ethers.getContractFactory("Timelock");
+  const timelock = await Timelock.deploy(proposers, executors, deployer.address);
+  await timelock.waitForDeployment();
+  const timelockAddress = await timelock.getAddress();
+  console.log("Timelock deployed to:", timelockAddress);
+
+  // Deploy Governor
+  console.log("\nDeploying Governor...");
+  const votingDelay = 1; // 1 block
+  const votingPeriod = 45818; // 1 week on BSC (assuming 17s block time)
+  const quorumPercentage = 4; // 4%
+  const Governor = await ethers.getContractFactory("DAIverseGovernor");
+  const governor = await Governor.deploy(tokenAddress, timelockAddress, votingDelay, votingPeriod, quorumPercentage);
+  await governor.waitForDeployment();
+  const governorAddress = await governor.getAddress();
+  console.log("Governor deployed to:", governorAddress);
+
   // Transfer some tokens to Treasury
   const treasuryAmount = ethers.parseEther("10000000"); // 10M tokens
   await token.transfer(treasuryAddress, treasuryAmount);
@@ -142,6 +163,21 @@ async function main() {
   console.log("Updated dataset reward:", ethers.formatEther(updatedDatasetReward), "DAIV");
   console.log("Updated training reward:", ethers.formatEther(updatedTrainingReward), "DAIV");
 
+  // 11. Create a governance proposal
+  console.log("\n11. Creating a governance proposal...");
+  const targets = [paramsAddress];
+  const values = [0];
+  const calldatas = [params.interface.encodeFunctionData("setRewards", [
+    ethers.parseEther("2000"),
+    ethers.parseEther("8000")
+  ])];
+  const description = "Update rewards: increase dataset reward to 2000 DAIV and training reward to 8000 DAIV";
+  
+  const proposeTx = await governor.propose(targets, values, calldatas, description);
+  const proposeReceipt = await proposeTx.wait();
+  const proposalId = proposeReceipt.logs[0].args[0];
+  console.log("Proposal created with ID:", proposalId);
+
   console.log("\n=== DEMO COMPLETED SUCCESSFULLY ===");
   console.log("The basic contract functionality has been demonstrated:");
   console.log("1. Token balance check ✓");
@@ -149,7 +185,7 @@ async function main() {
   console.log("3. Training job creation ✓");
   console.log("4. Job funding ✓");
   console.log("5. Parameter management ✓");
-  console.log("\nNote: Full governance workflow requires Governor and Timelock contracts");
+  console.log("6. Governance proposal creation ✓");
 }
 
 main()
